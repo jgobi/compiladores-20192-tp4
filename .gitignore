@@ -1,0 +1,5 @@
+.vscode
+lex.yy.c
+mlm.tab.c
+mlm.tab.h
+a.out

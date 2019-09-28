@@ -1,5 +1,8 @@
 %{
+    #include "string.h"
+    #include "mlm.tab.h"
     int num_linha = 1;
+    char true_str[] = "true";
 %}
 
 letter          [A-Za-z]
@@ -17,41 +20,47 @@ char_const      '([^\n'\\]|\\(1?[0-7]?[0-7]|x[0-9A-Fa-f]?[0-9A-Fa-f]|['abefnrtv\
 type            integer|real|boolean|char
 boolean_const   true|false
 
-RELOP           =|<|<=|>|>=|!=|NOT
-ADDOP           \+|-|or
+RELOP           =|<|<=|>|>=|!=
+ADDOP           \+|or
 MULOP           \*|\/|div|mod|and
 
 WS              [\t ]+
 
 %%
 
-program         {printf("<program>\n");}
-begin           {printf("<begin>\n");}
-end             {printf("<end>\n");}
-if              {printf("<if>\n");}
-then            {printf("<then>\n");}
-else            {printf("<else>\n");}
-do              {printf("<do>\n");}
-while           {printf("<while>\n");}
-until           {printf("<until>\n");}
-read            {printf("<read>\n");}
-write           {printf("<write>\n");}
+program         {return PROGRAM;}
+begin           {return BEGIN_T;}
+end             {return END;}
+if              {return IF;}
+then            {return THEN;}
+else            {return ELSE;}
+do              {return DO;}
+while           {return WHILE;}
+until           {return UNTIL;}
+read            {return READ;}
+write           {return WRITE;}
 
 
-[:;,()]         {printf("<%s>\n", yytext);}
-:=              {printf("<assign>\n");}
+[:]             {return TWO_DOTS;}
+[;]             {return DOT_COMMA;}
+[,]             {return COMMA;}
+[(]             {return OPEN_PAR;}
+[)]             {return CLOSE_PAR;}
+:=              {return ASSIGN;}
 
-{type}          {printf("<type, %s>\n", yytext);}
-{boolean_const} {printf("<boolean_const, %s>\n", yytext);}
-{integer_const} {printf("<integer_const, %s>\n", yytext);}
-{real_const}    {printf("<real_const, %s>\n", yytext);}
-{char_const}    {printf("<char_const, %s>\n", yytext);}
+{type}          {yylval.string = strdup(yytext); return TYPE;}
+{boolean_const} {yylval.intval = (strcmp(yytext, true_str) == 0 ? 1 : 0); return BOOLEAN_CONST;}
+{integer_const} {yylval.intval = atoi(yytext); return INTEGER_CONST;}
+{real_const}    {yylval.val = atof(yytext); return REAL_CONST;}
+{char_const}    {yylval.cha = yytext[0]; return CHAR_CONST;}
 
-{RELOP}         {printf("<RELOP, %s>\n", yytext);}
-{ADDOP}         {printf("<ADDOP, %s>\n", yytext);}
-{MULOP}         {printf("<MULOP, %s>\n", yytext);}
+NOT             {return NOT;}
+{RELOP}         {yylval.string = strdup(yytext); return RELOP;}
+-               {return MINUS;}
+{ADDOP}         {yylval.string = strdup(yytext); return ADDOP;}
+{MULOP}         {yylval.string = strdup(yytext); return MULOP;}
 
-{identifier}    {printf("<identifier,%s>\n", yytext);}
+{identifier}    {yylval.string = strdup(yytext); return IDENTIFIER;}
 
 {WS}            {/*do nothing*/}
 \n              {num_linha++;}

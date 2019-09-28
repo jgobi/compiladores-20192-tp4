@@ -1,40 +1,50 @@
 %{
 #include <stdio.h>
 
-void yyerror(char *c);
+void yyerror(char const *c);
 int yylex(void);
 %}
 
-%token PROGRAM BEGIN END IF THEN ELSE DO WHILE UNTIL READ WRITE ASSIGN TYPE BOOLEAN_CONST INTEGER_CONST REAL_CONST CHAR_CONST RELOP ADDOP MULOP IDENTIFIER
+%token PROGRAM BEGIN_T END IF THEN ELSE DO WHILE UNTIL READ WRITE TYPE BOOLEAN_CONST INTEGER_CONST REAL_CONST CHAR_CONST RELOP ADDOP MULOP IDENTIFIER
+%token TWO_DOTS DOT_COMMA COMMA OPEN_PAR CLOSE_PAR ASSIGN NOT MINUS
 
-%right THEN ELSE
+%union {
+  int intval;
+  double val;
+  char cha;
+  char *string;
+}
+
+%right THEN ELSE // https://stackoverflow.com/a/12734499
+
+%define parse.error verbose
 
 %%
 
 program:
-    PROGRAM IDENTIFIER ';' decl_list compound_stmt
+    PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt
     ;
 
 decl_list:
-    decl_list ';' decl
+    decl_list DOT_COMMA decl
     | decl
     ;
 
 decl:
-    ident_list ':' TYPE
+    ident_list TWO_DOTS TYPE
     ;
 
 ident_list:
-    ident_list ',' IDENTIFIER
+    ident_list COMMA IDENTIFIER
     | IDENTIFIER
     ;
 
 compound_stmt:
-    BEGIN stmt_list END
+    BEGIN_T stmt_list END
     ;
 
 stmt_list:
-    stmt_list ';' stmt
+    stmt_list DOT_COMMA stmt
     | stmt
     ;
 
@@ -75,25 +85,27 @@ stmt_suffix:
     ;
 
 read_stmt:
-    READ '(' ident_list ')'
+    READ OPEN_PAR ident_list CLOSE_PAR
     ;
 
 write_stmt:
-    WRITE '(' expr_list ')'
+    WRITE OPEN_PAR expr_list CLOSE_PAR
     ;
 
 expr_list:
     expr
-    | expr_list ',' expr
+    | expr_list COMMA expr
     ;
 
 expr:
     simple_expr
+    | simple_expr NOT simple_expr
     | simple_expr RELOP simple_expr
     ;
 
 simple_expr:
     term
+    | simple_expr MINUS term
     | simple_expr ADDOP term
     ;
 
@@ -103,15 +115,15 @@ term:
     ;
 
 factor_a:
-    '-' factor
+    MINUS factor
     | factor
     ;
 
 factor:
     IDENTIFIER
     | constant
-    | '(' expr ')'
-    | "NOT" factor
+    | OPEN_PAR expr CLOSE_PAR
+    | NOT factor
     ;
 
 constant:
@@ -124,8 +136,8 @@ constant:
 
 %%
 
-void yyerror(char *c) {
-    printf("Erro: %s\n", c);
+void yyerror(char const *s) {
+    printf("Erro: %s\n", s);
 }
 
 int main() {
