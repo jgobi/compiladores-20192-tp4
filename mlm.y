@@ -22,115 +22,115 @@ int yylex(void);
 %%
 
 program:
-    PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt
+    PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt    { printf("PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt\n"); }
     ;
 
 decl_list:
-    decl_list DOT_COMMA decl
-    | decl
+    decl_list DOT_COMMA decl    { printf("decl_list DOT_COMMA decl\n"); }
+    | decl    { printf("decl\n"); }
     ;
 
 decl:
-    ident_list TWO_DOTS TYPE
+    ident_list TWO_DOTS TYPE   { printf("ident_list TWO_DOTS TYPE\n"); }
     ;
 
 ident_list:
-    ident_list COMMA IDENTIFIER
-    | IDENTIFIER
+    ident_list COMMA IDENTIFIER    { printf("ident_list COMMA IDENTIFIER\n"); }
+    | IDENTIFIER    { printf("IDENTIFIER\n"); }
     ;
 
 compound_stmt:
-    BEGIN_T stmt_list END
+    BEGIN_T stmt_list END    { printf("BEGIN_T stmt_list END\n"); }
     ;
 
 stmt_list:
-    stmt_list DOT_COMMA stmt
-    | stmt
+    stmt_list DOT_COMMA stmt    { printf("stmt_list DOT_COMMA stmt\n"); }
+    | stmt    { printf("stmt\n"); }
     ;
 
 stmt:
-    assign_stmt
-    | if_stmt
-    | loop_stmt
-    | read_stmt
-    | write_stmt
-    | compound_stmt
+    assign_stmt    { printf("assign_stmt\n"); }
+    | if_stmt    { printf("if_stmt\n"); }
+    | loop_stmt    { printf("loop_stmt\n"); }
+    | read_stmt    { printf("read_stmt\n"); }
+    | write_stmt    { printf("write_stmt\n"); }
+    | compound_stmt    { printf("compound_stmt\n"); }
     ;
 
 assign_stmt:
-    IDENTIFIER ASSIGN expr
+    IDENTIFIER ASSIGN expr    { printf("IDENTIFIER ASSIGN expr\n"); }
     ;
 
 if_stmt:
-    IF cond THEN stmt
-    | IF cond THEN stmt ELSE stmt
+    IF cond THEN stmt    { printf("IF cond THEN stmt\n"); }
+    | IF cond THEN stmt ELSE stmt    { printf("IF cond THEN stmt ELSE stmt\n"); }
     ;
 
 cond:
-    expr
+    expr    { printf("expr\n"); }
     ;
 
 loop_stmt:
-    stmt_prefix DO stmt_list stmt_suffix
+    stmt_prefix DO stmt_list stmt_suffix    { printf("stmt_prefix DO stmt_list stmt_suffix\n"); }
     ;
 
 stmt_prefix:
-    WHILE cond
+    WHILE cond    { printf("WHILE cond\n"); }
     |
     ;
 
 stmt_suffix:
-    UNTIL cond
-    | END
+    UNTIL cond    { printf("UNTIL cond\n"); }
+    | END    { printf("END\n"); }
     ;
 
 read_stmt:
-    READ OPEN_PAR ident_list CLOSE_PAR
+    READ OPEN_PAR ident_list CLOSE_PAR    { printf("READ OPEN_PAR ident_list CLOSE_PAR\n"); }
     ;
 
 write_stmt:
-    WRITE OPEN_PAR expr_list CLOSE_PAR
+    WRITE OPEN_PAR expr_list CLOSE_PAR    { printf("WRITE OPEN_PAR expr_list CLOSE_PAR\n"); }
     ;
 
 expr_list:
-    expr
-    | expr_list COMMA expr
+    expr    { printf("expr\n"); }
+    | expr_list COMMA expr    { printf("expr_list COMMA expr\n"); }
     ;
 
 expr:
-    simple_expr
-    | simple_expr NOT simple_expr
-    | simple_expr RELOP simple_expr
+    simple_expr    { printf("simple_expr\n"); }
+    | simple_expr NOT simple_expr    { printf("simple_expr NOT simple_expr\n"); }
+    | simple_expr RELOP simple_expr    { printf("simple_expr RELOP simple_expr\n"); }
     ;
 
 simple_expr:
-    term
-    | simple_expr MINUS term
-    | simple_expr ADDOP term
+    term    { printf("term\n"); }
+    | simple_expr MINUS term    { printf("simple_expr MINUS term\n"); }
+    | simple_expr ADDOP term    { printf("simple_expr ADDOP term\n"); }
     ;
 
 term:
-    factor_a
-    | term MULOP factor_a
+    factor_a    { printf("factor_a\n"); }
+    | term MULOP factor_a    { printf("term MULOP factor_a\n"); }
     ;
 
 factor_a:
-    MINUS factor
-    | factor
+    MINUS factor    { printf("MINUS factor\n"); }
+    | factor    { printf("factor\n"); }
     ;
 
 factor:
-    IDENTIFIER
-    | constant
-    | OPEN_PAR expr CLOSE_PAR
-    | NOT factor
+    IDENTIFIER    { printf("IDENTIFIER\n"); }
+    | constant    { printf("constant\n"); }
+    | OPEN_PAR expr CLOSE_PAR    { printf("OPEN_PAR expr CLOSE_PAR\n"); }
+    | NOT factor    { printf("NOT factor\n"); }
     ;
 
 constant:
-    INTEGER_CONST
-    | REAL_CONST
-    | CHAR_CONST
-    | BOOLEAN_CONST
+    INTEGER_CONST    { printf("INTEGER_CONST\n"); }
+    | REAL_CONST    { printf("REAL_CONST\n"); }
+    | CHAR_CONST    { printf("CHAR_CONST\n"); }
+    | BOOLEAN_CONST    { printf("BOOLEAN_CONST\n"); }
     ;
 
 
