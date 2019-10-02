@@ -3,6 +3,8 @@
 
 void yyerror(char const *c);
 int yylex(void);
+
+extern int num_linha;
 %}
 
 %token PROGRAM BEGIN_T END IF THEN ELSE DO WHILE UNTIL READ WRITE TYPE BOOLEAN_CONST INTEGER_CONST REAL_CONST CHAR_CONST RELOP ADDOP MULOP IDENTIFIER
@@ -142,5 +144,6 @@ void yyerror(char const *s) {
 
 int main() {
     yyparse();
+    fprintf(stderr, "\n=== %i linhas analisadas ===\n", num_linha-1);
     return 0;
 }
