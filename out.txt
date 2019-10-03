@@ -1,0 +1,59 @@
+ident_list: IDENTIFIER
+decl: ident_list TWO_DOTS TYPE
+decl_list: decl
+constant: INTEGER_CONST 3
+factor: constant
+factor_a: factor
+term: factor_a
+simple_expr: term
+expr: simple_expr
+assign_stmt: IDENTIFIER ASSIGN expr
+stmt: assign_stmt
+stmt_list: stmt
+factor: IDENTIFIER
+factor_a: factor
+term: factor_a
+simple_expr: term
+constant: INTEGER_CONST 3
+factor: constant
+factor_a: factor
+term: factor_a
+simple_expr: term
+expr: simple_expr RELOP simple_expr
+cond: expr
+factor: IDENTIFIER
+factor_a: factor
+term: factor_a
+simple_expr: term
+constant: INTEGER_CONST 10
+factor: constant
+factor_a: factor
+term: factor_a
+simple_expr: term
+expr: simple_expr RELOP simple_expr
+cond: expr
+stmt_prefix: WHILE cond
+factor: IDENTIFIER
+factor_a: factor
+term: factor_a
+simple_expr: term
+constant: INTEGER_CONST 1
+factor: constant
+factor_a: factor
+term: factor_a
+simple_expr: simple_expr ADDOP term
+expr: simple_expr
+assign_stmt: IDENTIFIER ASSIGN expr
+stmt: assign_stmt
+stmt_list: stmt
+stmt_suffix: END
+loop_stmt: stmt_prefix DO stmt_list stmt_suffix
+stmt: loop_stmt
+stmt_list: stmt
+compound_stmt: BEGIN_T stmt_list END
+stmt: compound_stmt
+if_stmt: IF cond THEN stmt
+stmt: if_stmt
+stmt_list: stmt_list DOT_COMMA stmt
+compound_stmt: BEGIN_T stmt_list END
+program: PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt
