@@ -8,7 +8,7 @@ symbol_table_t* st_alloc (unsigned max_size) {
     st->max = max_size;
     st->len = 0;
     st->cur_block = 0;
-    st->nodes = (st_node_t*) malloc(max_size * sizeof (st_node_t));
+    st->nodes = (st_node_t**) malloc(max_size * sizeof (st_node_t*));
     return st;
 };
 void st_free (symbol_table_t *st) {
@@ -17,17 +17,27 @@ void st_free (symbol_table_t *st) {
 };
 st_node_t* st_lookup (symbol_table_t *st, char *symbol) {
     for (unsigned i = 0; i<(st->len); i++) {
-        if (strcmp((st->nodes + i)->name, symbol) == 0) {
-            return st->nodes + i;
+        if (strcmp(st->nodes[i]->name, symbol) == 0) {
+            return st->nodes[i];
         }
     }
     return NULL;
 };
 
-st_node_t* st_insert (symbol_table_t *st, char *symbol, st_type_t type, unsigned line) {
-    st_node_t* node = st->nodes + st->len;
-    st->len++;
-    node->block = st->cur_block;
+int st_insert (symbol_table_t *st, st_node_t *node) {
+    if (st->len < st->max) {
+        node->block = st->cur_block;
+        *(st->nodes + st->len) = node;
+        st->len++;
+        return 1;
+    } else {
+        return 0;
+    }
+};
+
+st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line) {
+    st_node_t* node = malloc(sizeof (st_node_t));
+    node->block = 0;
     node->line = line;
     node->name[0] = '\0';
     node->type = type;

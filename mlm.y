@@ -6,136 +6,200 @@ void yyerror(char const *c);
 int yylex(void);
 
 extern int num_linha;
+symbol_table_t* st = st_alloc(1024);
+
+char variaveis[100][10];
+int count = 0;
+
+unsigned temp_count = 0;
+
 %}
 
 %token PROGRAM BEGIN_T END IF THEN ELSE DO WHILE UNTIL READ WRITE TYPE BOOLEAN_CONST INTEGER_CONST REAL_CONST CHAR_CONST RELOP ADDOP MULOP IDENTIFIER
 %token TWO_DOTS DOT_COMMA COMMA OPEN_PAR CLOSE_PAR ASSIGN NOT MINUS
+
+%code requires {
+    #include "symbol_table.h"
+}
 
 %union {
   int intval;
   double val;
   char cha;
   char *string;
+  st_node_t *node;
 }
 
 %right THEN ELSE // https://stackoverflow.com/a/12734499
 
 %define parse.error verbose
 
-%type <intval> INTEGER_CONST
+%type <intval> INTEGER_CONST BOOLEAN_CONST
+%type <val> REAL_CONST
+%type <cha> CHAR_CONST
+%type <string> IDENTIFIER TYPE RELOP ADDOP MULOP
+
+%type <node> constant ident_list expr assign_stmt expr_list simple_expr term factor_a factor
 
 %%
 
 program:
-    PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt    { printf("program: PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt\n"); }
+    PROGRAM IDENTIFIER DOT_COMMA decl_list compound_stmt    
     ;
 
 decl_list:
-    decl_list DOT_COMMA decl    { printf("decl_list: decl_list DOT_COMMA decl\n"); }
-    | decl    { printf("decl_list: decl\n"); }
+    decl_list DOT_COMMA decl    
+    | decl    
     ;
 
 decl:
-    ident_list TWO_DOTS TYPE   { printf("decl: ident_list TWO_DOTS TYPE\n"); }
+    ident_list TWO_DOTS TYPE   {
+        for(int i = 0; i < count; i++) {
+            st_node_t* node = st_lookup(st, $1);
+            if(node != NULL) printf("Erro: variavel %s ja definida.\n", $1);
+            else {
+                st_insert(st, variaveis[i], $3);
+            } 
+        }
+        count = 0;    
+    }
     ;
 
 ident_list:
-    ident_list COMMA IDENTIFIER    { printf("ident_list: ident_list COMMA IDENTIFIER\n"); }
-    | IDENTIFIER    { printf("ident_list: IDENTIFIER\n"); }
+    ident_list COMMA IDENTIFIER    {
+        $$ = $3;
+        strcpy(variaveis[count], $$);
+        count++;
+    }
+    | IDENTIFIER    {
+        $$ = $1;
+        strcpy(variaveis[count], $$);
+        count++;
+    }
     ;
 
 compound_stmt:
-    BEGIN_T stmt_list END    { printf("compound_stmt: BEGIN_T stmt_list END\n"); }
+    BEGIN_T stmt_list END    
     ;
 
 stmt_list:
-    stmt_list DOT_COMMA stmt    { printf("stmt_list: stmt_list DOT_COMMA stmt\n"); }
-    | stmt    { printf("stmt_list: stmt\n"); }
+    stmt_list DOT_COMMA stmt    
+    | stmt    
     ;
 
 stmt:
-    assign_stmt    { printf("stmt: assign_stmt\n"); }
-    | if_stmt    { printf("stmt: if_stmt\n"); }
-    | loop_stmt    { printf("stmt: loop_stmt\n"); }
-    | read_stmt    { printf("stmt: read_stmt\n"); }
-    | write_stmt    { printf("stmt: write_stmt\n"); }
-    | compound_stmt    { printf("stmt: compound_stmt\n"); }
+    assign_stmt    
+    | if_stmt    
+    | loop_stmt    
+    | read_stmt    
+    | write_stmt    
+    | compound_stmt    
     ;
 
 assign_stmt:
-    IDENTIFIER ASSIGN expr    { printf("assign_stmt: IDENTIFIER ASSIGN expr\n"); }
+    IDENTIFIER ASSIGN expr    { 
+        st_node_t* node = st_lookup(st, $1);
+        if(node == NULL) {
+            printf("Erro: variavel %s nao definida.\n", $1);
+        } else {
+
+        }
+     }
     ;
 
 if_stmt:
-    IF cond THEN stmt    { printf("if_stmt: IF cond THEN stmt\n"); }
-    | IF cond THEN stmt ELSE stmt    { printf("if_stmt: IF cond THEN stmt ELSE stmt\n"); }
+    IF cond THEN stmt    
+    | IF cond THEN stmt ELSE stmt    
     ;
 
 cond:
-    expr    { printf("cond: expr\n"); }
+    expr    
     ;
 
 loop_stmt:
-    stmt_prefix DO stmt_list stmt_suffix    { printf("loop_stmt: stmt_prefix DO stmt_list stmt_suffix\n"); }
+    stmt_prefix DO stmt_list stmt_suffix    
     ;
 
 stmt_prefix:
-    WHILE cond    { printf("stmt_prefix: WHILE cond\n"); }
-    | { printf("stmt_prefix: \n"); }
+    WHILE cond    
+    | 
     ;
 
 stmt_suffix:
-    UNTIL cond    { printf("stmt_suffix: UNTIL cond\n"); }
-    | END    { printf("stmt_suffix: END\n"); }
+    UNTIL cond    
+    | END    
     ;
 
 read_stmt:
-    READ OPEN_PAR ident_list CLOSE_PAR    { printf("read_stmt: READ OPEN_PAR ident_list CLOSE_PAR\n"); }
+    READ OPEN_PAR ident_list CLOSE_PAR    
     ;
 
 write_stmt:
-    WRITE OPEN_PAR expr_list CLOSE_PAR    { printf("write_stmt: WRITE OPEN_PAR expr_list CLOSE_PAR\n"); }
+    WRITE OPEN_PAR expr_list CLOSE_PAR    
     ;
 
 expr_list:
-    expr    { printf("expr_list: expr\n"); }
-    | expr_list COMMA expr    { printf("expr_list: expr_list COMMA expr\n"); }
+    expr    
+    | expr_list COMMA expr    
     ;
 
 expr:
-    simple_expr    { printf("expr: simple_expr\n"); }
-    | simple_expr NOT simple_expr    { printf("expr: simple_expr NOT simple_expr\n"); }
-    | simple_expr RELOP simple_expr    { printf("expr: simple_expr RELOP simple_expr\n"); }
+    simple_expr    
+    | simple_expr NOT simple_expr    
+    | simple_expr RELOP simple_expr    
     ;
 
 simple_expr:
-    term    { printf("simple_expr: term\n"); }
-    | simple_expr MINUS term    { printf("simple_expr: simple_expr MINUS term\n"); }
-    | simple_expr ADDOP term    { printf("simple_expr: simple_expr ADDOP term\n"); }
+    term    
+    | simple_expr MINUS term    
+    | simple_expr ADDOP term    
     ;
 
 term:
-    factor_a    { printf("term: factor_a\n"); }
-    | term MULOP factor_a    { printf("term: term MULOP factor_a\n"); }
+    factor_a    
+    | term MULOP factor_a    
     ;
 
 factor_a:
-    MINUS factor    { printf("factor_a: MINUS factor\n"); }
-    | factor    { printf("factor_a: factor\n"); }
+    MINUS factor    
+    | factor    
     ;
 
 factor:
-    IDENTIFIER    { printf("factor: IDENTIFIER\n"); }
-    | constant    { printf("factor: constant\n"); }
-    | OPEN_PAR expr CLOSE_PAR    { printf("factor: OPEN_PAR expr CLOSE_PAR\n"); }
-    | NOT factor    { printf("factor: NOT factor\n"); }
+    IDENTIFIER    { 
+        st_node_t* node = st_lookup(st, $1);
+        if(node == NULL) {
+            printf("Erro: variavel %s nao definida.\n", $1);
+        } else {
+
+        }
+    }
+    | constant    
+    | OPEN_PAR expr CLOSE_PAR    
+    | NOT factor    
     ;
 
 constant:
-    INTEGER_CONST    { printf("constant: INTEGER_CONST %i\n", $1); }
-    | REAL_CONST    { printf("constant: REAL_CONST\n"); }
-    | CHAR_CONST    { printf("constant: CHAR_CONST\n"); }
-    | BOOLEAN_CONST    { printf("constant: BOOLEAN_CONST\n"); }
+    INTEGER_CONST {
+        char tname[16];
+        snprintf(tname, 15, "_t%u", temp_count++);
+        $$ = st_create_node(tname, INTEGER_T, num_linha);
+    }
+    | REAL_CONST {
+        char tname[16];
+        snprintf(tname, 15, "_t%u", temp_count++);
+        $$ = st_create_node(tname, REAL_T, num_linha);
+    }
+    | CHAR_CONST {
+        char tname[16];
+        snprintf(tname, 15, "_t%u", temp_count++);
+        $$ = st_create_node(tname, CHAR_T, num_linha);
+    }
+    | BOOLEAN_CONST {
+        char tname[16];
+        snprintf(tname, 15, "_t%u", temp_count++);
+        $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+    }
     ;
 
 

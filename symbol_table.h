@@ -15,13 +15,15 @@ typedef struct symbol_table_t {
     unsigned len;
     unsigned max;
     unsigned cur_block;
-    st_node_t* nodes;
+    st_node_t** nodes;
 } symbol_table_t;
 
 symbol_table_t* st_alloc (unsigned max_size);
 void st_free (symbol_table_t *st);
 st_node_t* st_lookup (symbol_table_t *st, char *symbol);
-st_node_t* st_insert (symbol_table_t *st, char *symbol, st_type_t type, unsigned line);
+int st_insert (symbol_table_t *st, st_node_t *node);
+
+st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line);
 
 unsigned st_enter_block (symbol_table_t *st);
 unsigned st_leave_block (symbol_table_t *st);
