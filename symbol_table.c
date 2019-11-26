@@ -38,12 +38,15 @@ int st_insert (symbol_table_t *st, st_node_t *node) {
     }
 };
 
-st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line) {
+st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line, unsigned line_code) {
     st_node_t* node = malloc(sizeof (st_node_t));
     node->block = 0;
     node->line = line;
+    node->line_code = line_code;
     node->name[0] = '\0';
     node->type = type;
+    node->lparent = NULL;
+    node->rparent = NULL;
     strcpy(node->name, symbol);
     return node;
 };

@@ -1,16 +1,7 @@
 program teste; var1: integer; var2: char
 begin
-    var1 := 3;
-    if var1 >= 3 then begin
-        var1 := 12;
-        if var1 = 3 then begin
-            var1 := 15
-        end
-        else begin
-            var2 := 'k'
-        end
-    end
-    else begin
-        var2 := 'j'
+    var1 := 100;
+    while var1 > 10 do
+        var1 := 12
     end
 end

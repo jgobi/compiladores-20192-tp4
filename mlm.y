@@ -38,6 +38,18 @@ void backpatch_code (unsigned idx, char *str) {
 unsigned stack[MAX_STACK_SIZE];
 unsigned stack_count = 0;
 
+unsigned min (unsigned a, unsigned b) { return a < b ? a : b; }
+unsigned dfs (st_node_t *node) {
+    unsigned min_linha = node->line_code;
+    if (node->lparent != NULL) {
+        min_linha = min(min_linha, dfs(node->lparent));
+    }
+    if (node->rparent != NULL) {
+        min_linha = min(min_linha, dfs(node->rparent));
+    }
+    return min_linha;
+}
+
 %}
 
 %token PROGRAM BEGIN_T END IF THEN ELSE DO WHILE UNTIL READ WRITE TYPE BOOLEAN_CONST INTEGER_CONST REAL_CONST CHAR_CONST RELOP ADDOP MULOP IDENTIFIER
@@ -62,7 +74,7 @@ unsigned stack_count = 0;
 %type <val> REAL_CONST
 %type <string> IDENTIFIER TYPE RELOP ADDOP MULOP CHAR_CONST
 
-%type <node> constant factor_a factor term simple_expr expr cond
+%type <node> constant factor_a factor term simple_expr expr cond stmt_prefix
 
 %%
 
@@ -84,7 +96,7 @@ decl:
                 YYERROR;
             } else {
                 st_type_t type = st_str2type($3);
-                node = st_create_node(list_ident[i], type, num_linha);
+                node = st_create_node(list_ident[i], type, num_linha, -1);
                 st_insert(st, node);
 
                 char buffer[128];
@@ -187,17 +199,43 @@ cond:
     ;
 
 loop_stmt:
-    stmt_prefix DO stmt_list stmt_suffix    
+    stmt_prefix DO stmt_list stmt_suffix    {
+        if ($1 != NULL) {
+            char buffer[128];
+            snprintf(buffer, 127, "jump %u", dfs($1));
+            gen_code(buffer);
+            stack_count--;
+            snprintf(buffer, 127, "branch %s %u", $1->name, codigo_count); 
+            backpatch_code(stack[stack_count], buffer);
+        }
+    }
     ;
 
-stmt_prefix:
-    WHILE cond    
-    | 
+stmt_prefix: 
+    WHILE cond  {
+        $$ = $2;
+        stack[stack_count] = codigo_count;
+        stack_count++;
+    }
+    | {
+        $$ = NULL;
+        stack[stack_count] = codigo_count;
+        stack_count++;
+    }
     ;
 
 stmt_suffix:
-    UNTIL cond    
-    | END    
+    UNTIL cond    {
+        char buffer[128];
+        stack_count--;
+        unsigned branch = stack[stack_count];
+        stack_count--;
+        snprintf(buffer, 127, "branch %s %u", $2->name, stack[stack_count]); 
+        backpatch_code(branch, buffer);
+    }
+    | END   {
+        stack_count--;
+    }
     ;
 
 read_stmt:
@@ -247,7 +285,9 @@ expr:
     | simple_expr RELOP simple_expr    {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
-        $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+        $$ = st_create_node(tname, BOOLEAN_T, num_linha, codigo_count);
+        $$->lparent = $1;
+        $$->rparent = $3;
         st_insert(st, $$);
         char buffer[128];
         snprintf(buffer, 127, "declare %s boolean 0", tname);
@@ -268,7 +308,9 @@ simple_expr:
         ) {
             char tname[16];
             snprintf(tname, 15, "_t%u", temp_count++);
-            $$ = st_create_node(tname, $1->type, num_linha);
+            $$ = st_create_node(tname, $1->type, num_linha, codigo_count);
+            $$->lparent = $1;
+            $$->rparent = $3;
             st_insert(st, $$);
             char buffer[128];
             snprintf(buffer, 127, "declare %s %s 0", tname, st_types[$1->type]);
@@ -304,7 +346,9 @@ simple_expr:
         if (!is_error) {
             char tname[16];
             snprintf(tname, 15, "_t%u", temp_count++);
-            $$ = st_create_node(tname, $1->type, num_linha);
+            $$ = st_create_node(tname, $1->type, num_linha, codigo_count);
+            $$->lparent = $1;
+            $$->rparent = $3;
             st_insert(st, $$);
             char buffer[128];
             snprintf(buffer, 127, "declare %s %s 0", tname, st_types[type]);
@@ -343,7 +387,9 @@ term:
         if (!is_error) {
             char tname[16];
             snprintf(tname, 15, "_t%u", temp_count++);
-            $$ = st_create_node(tname, $1->type, num_linha);
+            $$ = st_create_node(tname, $1->type, num_linha, codigo_count);
+            $$->lparent = $1;
+            $$->rparent = $3;
             st_insert(st, $$);
             char buffer[128];
             snprintf(buffer, 127, "declare %s %s 0", tname, st_types[type]);
@@ -359,7 +405,8 @@ factor_a:
         if ($2->type == REAL_T || $2->type == INTEGER_T) {
             char tname[16];
             snprintf(tname, 15, "_t%u", temp_count++);
-            $$ = st_create_node(tname, $2->type, num_linha);
+            $$ = st_create_node(tname, $2->type, num_linha, codigo_count);
+            $$->lparent = $2;
             st_insert(st, $$);
             char buffer[128];
             snprintf(buffer, 127, "declare %s %s 0", tname, st_types[$2->type]);
@@ -394,7 +441,8 @@ factor:
         if ($2->type == BOOLEAN_T || $2->type == INTEGER_T) {
             char tname[16];
             snprintf(tname, 15, "_t%u", temp_count++);
-            $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+            $$ = st_create_node(tname, BOOLEAN_T, num_linha, codigo_count);
+            $$->lparent = $2;
             st_insert(st, $$);
             char buffer[128];
             snprintf(buffer, 127, "declare %s boolean 0", tname);
@@ -412,7 +460,7 @@ constant:
     INTEGER_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
-        $$ = st_create_node(tname, INTEGER_T, num_linha);
+        $$ = st_create_node(tname, INTEGER_T, num_linha, codigo_count);
         st_insert(st, $$);
         char buffer[128];
         snprintf(buffer, 127, "declare %s integer %i", tname, $1);
@@ -421,7 +469,7 @@ constant:
     | REAL_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
-        $$ = st_create_node(tname, REAL_T, num_linha);
+        $$ = st_create_node(tname, REAL_T, num_linha, codigo_count);
         st_insert(st, $$);
         char buffer[128];
         snprintf(buffer, 127, "declare %s real %lf", tname, $1);
@@ -430,7 +478,7 @@ constant:
     | CHAR_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
-        $$ = st_create_node(tname, CHAR_T, num_linha);
+        $$ = st_create_node(tname, CHAR_T, num_linha, codigo_count);
         st_insert(st, $$);
         char buffer[128];
         snprintf(buffer, 127, "declare %s char %s", tname, $1);
@@ -439,7 +487,7 @@ constant:
     | BOOLEAN_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
-        $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+        $$ = st_create_node(tname, BOOLEAN_T, num_linha, codigo_count);
         st_insert(st, $$);
         char buffer[128];
         snprintf(buffer, 127, "declare %s boolean %i", tname, $1);

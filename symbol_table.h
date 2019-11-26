@@ -10,6 +10,9 @@ typedef struct st_node_t {
     st_type_t type;
     int block;
     int line;
+    int line_code;
+    struct st_node_t* lparent;
+    struct st_node_t* rparent;
 } st_node_t;
 
 typedef struct symbol_table_t {
@@ -25,7 +28,7 @@ st_node_t* st_lookup (symbol_table_t *st, char *symbol);
 int st_insert (symbol_table_t *st, st_node_t *node);
 void st_print (symbol_table_t *st);
 
-st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line);
+st_node_t* st_create_node (char *symbol, st_type_t type, unsigned line, unsigned line_code);
 
 unsigned st_enter_block (symbol_table_t *st);
 unsigned st_leave_block (symbol_table_t *st);
