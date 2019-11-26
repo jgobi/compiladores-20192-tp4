@@ -207,14 +207,16 @@ simple_expr:
     }
     | simple_expr ADDOP term    {
         st_type_t type = -1;
+        int is_logical = strcmp($2, "or") == 0;
         int is_error = 0;
         if (
-            strcmp($2, "or") == 0 &&
+            is_logical &&
             ($1->type == INTEGER_T || $1->type == BOOLEAN_T) &&
             ($3->type == INTEGER_T || $3->type == BOOLEAN_T)
         ) {
             type = BOOLEAN_T;
         } else if (
+            !is_logical &&
             ($1->type == $3->type) &&
             ($1->type == INTEGER_T || $1->type == REAL_T)
         ) {
@@ -244,14 +246,16 @@ term:
     }
     | term MULOP factor_a    {
         st_type_t type = -1;
+        int is_logical = strcmp($2, "and") == 0;
         int is_error = 0;
         if (
-            strcmp($2, "and") == 0 &&
+            is_logical &&
             ($1->type == INTEGER_T || $1->type == BOOLEAN_T) &&
             ($3->type == INTEGER_T || $3->type == BOOLEAN_T)
         ) {
             type = BOOLEAN_T;
         } else if (
+            !is_logical &&
             ($1->type == $3->type) &&
             ($1->type == INTEGER_T || $1->type == REAL_T)
         ) {
