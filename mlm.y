@@ -52,7 +52,7 @@ void gen_code (char *str) {
 %type <val> REAL_CONST
 %type <string> IDENTIFIER TYPE RELOP ADDOP MULOP CHAR_CONST
 
-%type <node> constant factor_a factor term 
+%type <node> constant factor_a factor term simple_expr expr
 
 %%
 
@@ -166,22 +166,27 @@ expr_list:
     ;
 
 expr:
-    simple_expr    
-    | simple_expr NOT simple_expr    
-    | simple_expr RELOP simple_expr    
+    simple_expr    {
+        $$ = $1;
+    }
+    | simple_expr RELOP simple_expr    {
+        char tname[16];
+        snprintf(tname, 15, "_t%u", temp_count++);
+        $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+        st_insert(st, $$);
+        char buffer[128];
+        snprintf(buffer, 127, "declare %s boolean 0", tname);
+        gen_code(buffer);
+        snprintf(buffer, 127, "%s %s %s %s", $2, tname, $1->name, $3->name);
+        gen_code(buffer);
+    }
     ;
 
 simple_expr:
-    term    
-    | simple_expr MINUS term    
-    | simple_expr ADDOP term    
-    ;
-
-term:
-    factor_a    {
+    term    {
         $$ = $1;
     }
-    | term MULOP factor_a    {
+    | simple_expr MINUS term    {
         if (
             ($1->type == $3->type) &&
             ($1->type == INTEGER_T || $1->type == REAL_T)
@@ -193,11 +198,79 @@ term:
             char buffer[128];
             snprintf(buffer, 127, "declare %s %s 0", tname, st_types[$1->type]);
             gen_code(buffer);
-            snprintf(buffer, 127, "%s %s %s %s", $2, tname, $1->name, $3->name);
+            snprintf(buffer, 127, "- %s %s %s", tname, $1->name, $3->name);
             gen_code(buffer);
         } else {
-            fprintf(stderr, "Erro: tipos %s e %s incompativeis com o operador %s na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
+            fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '-' na linha %u.\n", st_types[$1->type], st_types[$3->type], num_linha);
             YYERROR;
+        }
+    }
+    | simple_expr ADDOP term    {
+        st_type_t type = -1;
+        int is_error = 0;
+        if (
+            strcmp($2, "or") == 0 &&
+            ($1->type == INTEGER_T || $1->type == BOOLEAN_T) &&
+            ($3->type == INTEGER_T || $3->type == BOOLEAN_T)
+        ) {
+            type = BOOLEAN_T;
+        } else if (
+            ($1->type == $3->type) &&
+            ($1->type == INTEGER_T || $1->type == REAL_T)
+        ) {
+            type = $1->type;
+        } else {
+            is_error = 1;
+            fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '%s' na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
+            YYERROR;
+        }
+        if (!is_error) {
+            char tname[16];
+            snprintf(tname, 15, "_t%u", temp_count++);
+            $$ = st_create_node(tname, $1->type, num_linha);
+            st_insert(st, $$);
+            char buffer[128];
+            snprintf(buffer, 127, "declare %s %s 0", tname, st_types[type]);
+            gen_code(buffer);
+            snprintf(buffer, 127, "%s %s %s %s", $2, tname, $1->name, $3->name);
+            gen_code(buffer);
+        }
+    }
+    ;
+
+term:
+    factor_a    {
+        $$ = $1;
+    }
+    | term MULOP factor_a    {
+        st_type_t type = -1;
+        int is_error = 0;
+        if (
+            strcmp($2, "and") == 0 &&
+            ($1->type == INTEGER_T || $1->type == BOOLEAN_T) &&
+            ($3->type == INTEGER_T || $3->type == BOOLEAN_T)
+        ) {
+            type = BOOLEAN_T;
+        } else if (
+            ($1->type == $3->type) &&
+            ($1->type == INTEGER_T || $1->type == REAL_T)
+        ) {
+            type = $1->type;
+        } else {
+            is_error = 1;
+            fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '%s' na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
+            YYERROR;
+        }
+        if (!is_error) {
+            char tname[16];
+            snprintf(tname, 15, "_t%u", temp_count++);
+            $$ = st_create_node(tname, $1->type, num_linha);
+            st_insert(st, $$);
+            char buffer[128];
+            snprintf(buffer, 127, "declare %s %s 0", tname, st_types[type]);
+            gen_code(buffer);
+            snprintf(buffer, 127, "%s %s %s %s", $2, tname, $1->name, $3->name);
+            gen_code(buffer);
         }
     }
     ;
@@ -215,7 +288,7 @@ factor_a:
             snprintf(buffer, 127, "- %s 0 %s", tname, $2->name);
             gen_code(buffer);
         } else {
-            fprintf(stderr, "Erro: tipo %s incompativel com o operador MINUS na linha %u.\n", st_types[$2->type], num_linha);
+            fprintf(stderr, "Erro: tipo '%s' incompativel com o operador '-' na linha %u.\n", st_types[$2->type], num_linha);
             YYERROR;
         }
     }
@@ -228,7 +301,7 @@ factor:
     IDENTIFIER    { 
         $$ = st_lookup(st, $1);
         if($$ == NULL) {
-            fprintf(stderr, "Erro: uso de variavel %s nao definida na linha %u.\n", $1, num_linha);
+            fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", $1, num_linha);
             YYERROR;
         }
     }
@@ -250,7 +323,7 @@ factor:
             snprintf(buffer, 127, "not %s %s", tname, $2->name);
             gen_code(buffer);
         } else {
-            fprintf(stderr, "Erro: tipo %s incompativel com o operador NOT na linha %u.\n", st_types[$2->type], num_linha);
+            fprintf(stderr, "Erro: tipo '%s' incompativel com o operador 'NOT' na linha %u.\n", st_types[$2->type], num_linha);
             YYERROR;
         }
     }
