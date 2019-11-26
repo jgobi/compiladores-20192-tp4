@@ -6,6 +6,7 @@
 
 #define GENERATED_CODE_MAX 8192
 #define GENERATED_CODE_LINE_MAX 128
+#define MAX_STACK_SIZE 64
 
 void yyerror(char const *c);
 int yylex(void);
@@ -29,6 +30,13 @@ unsigned codigo_count = 0;
 void gen_code (char *str) {
     strcpy(codigo[codigo_count++], str);
 }
+
+void backpatch_code (unsigned idx, char *str) {
+    strcpy(codigo[idx], str);
+}
+
+unsigned stack[MAX_STACK_SIZE];
+unsigned stack_count = 0;
 
 %}
 
@@ -112,6 +120,14 @@ stmt_list:
     | stmt    
     ;
 
+stmt_if_else:
+    stmt   {
+        stack[stack_count] = codigo_count;
+        stack_count++;
+        gen_code("##");
+    }
+    ;
+
 stmt:
     assign_stmt    
     | if_stmt    
@@ -136,13 +152,37 @@ assign_stmt:
     ;
 
 if_stmt:
-    IF cond THEN stmt    
-    | IF cond THEN stmt ELSE stmt    
+    IF cond THEN stmt    {
+        char buffer[128];
+        stack_count--;
+        snprintf(buffer, 127, "branch %s %u", $2->name, codigo_count); 
+        backpatch_code(stack[stack_count], buffer);
+    }
+    | IF cond THEN stmt_if_else ELSE stmt   {
+        char buffer[128];
+        stack_count--;
+        // o topo da pilha está com a saída do stmt_if_else
+        snprintf(buffer, 127, "jump %u", codigo_count); 
+        backpatch_code(stack[stack_count], buffer);
+        snprintf(buffer, 127, "branch %s %u", $2->name, stack[stack_count] + 1); 
+        // o topo da pilha está com a saída do cond
+        stack_count--;
+        backpatch_code(stack[stack_count], buffer);
+    } 
     ;
 
 cond:
     expr    {
         $$ = $1;
+        if(stack_count >= MAX_STACK_SIZE) {
+            fprintf(stderr, "Stack overflow na linha %u.\n", num_linha);
+            YYERROR;
+        } else {
+            stack[stack_count] = codigo_count;
+            stack_count++;
+            gen_code("#");
+        }
+        
     }
     ;
 
@@ -411,7 +451,7 @@ constant:
 %%
 int error = 0;
 void yyerror(char const *s) {
-    // fprintf(stderr,"Erro na linha %i: %s\n", num_linha-1, s);
+    fprintf(stderr,"Erro na linha %u: %s\n", num_linha, s);
     error = 1;
 }
 
@@ -425,8 +465,9 @@ int main() {
     yyparse();
 
     for (unsigned i = 0; i < codigo_count; i++) {
-        printf("%s\n", codigo[i]);
+        printf("[%3u] %s\n", i, codigo[i]);
     }
+    printf("[%3u] halt\n", codigo_count);
     printf("\n");
     st_print(st);
 
