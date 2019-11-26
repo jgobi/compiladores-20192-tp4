@@ -23,7 +23,6 @@ int count_exprs = 0;
 
 unsigned temp_count = 0;
 
-
 char **codigo;
 unsigned codigo_count = 0;
 
@@ -340,7 +339,7 @@ factor_a:
 factor:
     IDENTIFIER    { 
         $$ = st_lookup(st, $1);
-        if($$ == NULL) {
+        if ($$ == NULL) {
             fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", $1, num_linha);
             YYERROR;
         }

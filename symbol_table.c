@@ -12,6 +12,9 @@ symbol_table_t* st_alloc (unsigned max_size) {
     return st;
 };
 void st_free (symbol_table_t *st) {
+    for (unsigned i = 0; i < st->len; i++) {
+        free(st->nodes[i]);
+    }
     free(st->nodes);
     free(st);
 };
