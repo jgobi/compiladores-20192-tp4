@@ -1,7 +1,14 @@
 program teste; var1: integer; var2: char
 begin
-    var1 := 100;
-    while var1 > 10 do
-        var1 := 12
+    var1 := 10;
+    if var1 < 100 then begin
+        var1 := var1*2
+    end
+    else begin
+        read(var2)
+    end
+    while var1 > 0 do
+        var1 := var1 - 12;
+        write(var1)
     end
 end
