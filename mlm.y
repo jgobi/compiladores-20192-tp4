@@ -309,7 +309,7 @@ factor:
         $$ = $1;
     }
     | OPEN_PAR expr CLOSE_PAR    {
-        
+        $$ = $2;
     }
     | NOT factor    {
         if ($2->type == BOOLEAN_T || $2->type == INTEGER_T) {
