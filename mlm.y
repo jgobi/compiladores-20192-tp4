@@ -513,9 +513,9 @@ int main() {
     yyparse();
 
     for (unsigned i = 0; i < codigo_count; i++) {
-        printf("[%3u] %s\n", i, codigo[i]);
+        printf("%s\n", codigo[i]);
     }
-    printf("[%3u] halt\n", codigo_count);
+    printf("halt\n");
     printf("\n");
     st_print(st);
 
