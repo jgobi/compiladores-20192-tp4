@@ -15,8 +15,11 @@ const char st_types[4][8] = { "boolean", "char", "integer", "real" };
 extern int num_linha;
 symbol_table_t* st;
 
-char variaveis[100][32];
-int count = 0;
+char list_ident[100][32];
+int count_ident = 0;
+
+st_node_t *list_exprs[100];
+int count_exprs = 0;
 
 unsigned temp_count = 0;
 
@@ -52,7 +55,7 @@ void gen_code (char *str) {
 %type <val> REAL_CONST
 %type <string> IDENTIFIER TYPE RELOP ADDOP MULOP CHAR_CONST
 
-%type <node> constant factor_a factor term simple_expr expr
+%type <node> constant factor_a factor term simple_expr expr cond
 
 %%
 
@@ -67,36 +70,37 @@ decl_list:
 
 decl:
     ident_list TWO_DOTS TYPE   {
-        for(int i = 0; i < count; i++) {
-            st_node_t* node = st_lookup(st, variaveis[i]);
-            if(node != NULL) {
-                fprintf(stderr, "Erro: redeclaracao da variavel %s, ja definida na linha %u.\n", variaveis[i], node->line);
+        for (int i = 0; i < count_ident; i++) {
+            st_node_t* node = st_lookup(st, list_ident[i]);
+            if (node != NULL) {
+                fprintf(stderr, "Erro: redeclaracao da variavel %s, ja definida na linha %u.\n", list_ident[i], node->line);
+                YYERROR;
             } else {
                 st_type_t type = st_str2type($3);
-                node = st_create_node(variaveis[i], type, num_linha);
+                node = st_create_node(list_ident[i], type, num_linha);
                 st_insert(st, node);
 
                 char buffer[128];
                 if (type == CHAR_T) {
-                    snprintf(buffer, 127, "declare %s %s '\\0'", variaveis[i], $3);
+                    snprintf(buffer, 127, "declare %s %s '\\0'", list_ident[i], $3);
                 } else {
-                    snprintf(buffer, 127, "declare %s %s 0", variaveis[i], $3);
+                    snprintf(buffer, 127, "declare %s %s 0", list_ident[i], $3);
                 }
                 gen_code(buffer);
             } 
         }
-        count = 0;    
+        count_ident = 0;
     }
     ;
 
 ident_list:
     ident_list COMMA IDENTIFIER    {
-        strcpy(variaveis[count], $3);
-        count++;
+        strcpy(list_ident[count_ident], $3);
+        count_ident++;
     }
     | IDENTIFIER    {
-        strcpy(variaveis[count], $1);
-        count++;
+        strcpy(list_ident[count_ident], $1);
+        count_ident++;
     }
     ;
 
@@ -122,9 +126,12 @@ assign_stmt:
     IDENTIFIER ASSIGN expr    { 
         st_node_t* node = st_lookup(st, $1);
         if(node == NULL) {
-            printf("Erro: variavel %s nao definida.\n", $1);
+            fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", $1, num_linha);
+            YYERROR;
         } else {
-
+            char buffer[128];
+            snprintf(buffer, 127, "assign %s %s", node->name, $3->name);
+            gen_code(buffer);
         }
      }
     ;
@@ -135,7 +142,9 @@ if_stmt:
     ;
 
 cond:
-    expr    
+    expr    {
+        $$ = $1;
+    }
     ;
 
 loop_stmt:
@@ -153,16 +162,43 @@ stmt_suffix:
     ;
 
 read_stmt:
-    READ OPEN_PAR ident_list CLOSE_PAR    
+    READ OPEN_PAR ident_list CLOSE_PAR    {
+        char buffer[128];
+        for (int i = 0; i < count_ident; i++) {
+            st_node_t* node = st_lookup(st, list_ident[i]);
+            if (node == NULL) {
+                fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", list_ident[i], num_linha);
+                YYERROR;
+            } else {
+                char buffer[128];
+                snprintf(buffer, 127, "read %s %s", st_types[node->type], node->name);
+                gen_code(buffer);
+            } 
+        }
+        count_ident = 0;
+    }
     ;
 
 write_stmt:
-    WRITE OPEN_PAR expr_list CLOSE_PAR    
+    WRITE OPEN_PAR expr_list CLOSE_PAR    {
+        char buffer[128];
+        for (int i = 0; i < count_exprs; i++) {
+            snprintf(buffer, 127, "write %s %s", st_types[list_exprs[i]->type], list_exprs[i]->name);
+            gen_code(buffer);
+        }
+        count_exprs = 0;
+    }
     ;
 
 expr_list:
-    expr    
-    | expr_list COMMA expr    
+    expr    {
+        list_exprs[count_exprs] = $1;
+        count_exprs++;
+    }
+    | expr_list COMMA expr    {
+        list_exprs[count_exprs] = $3;
+        count_exprs++;
+    }
     ;
 
 expr:
