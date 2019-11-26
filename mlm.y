@@ -1,17 +1,32 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include "symbol_table.h"
+
+#define GENERATED_CODE_MAX 8192
+#define GENERATED_CODE_LINE_MAX 128
 
 void yyerror(char const *c);
 int yylex(void);
 
-extern int num_linha;
-symbol_table_t* st = st_alloc(1024);
+const char st_types[4][8] = { "boolean", "char", "integer", "real" };
 
-char variaveis[100][10];
+extern int num_linha;
+symbol_table_t* st;
+
+char variaveis[100][32];
 int count = 0;
 
 unsigned temp_count = 0;
+
+
+char **codigo;
+unsigned codigo_count = 0;
+
+void gen_code (char *str) {
+    strcpy(codigo[codigo_count++], str);
+}
 
 %}
 
@@ -19,15 +34,14 @@ unsigned temp_count = 0;
 %token TWO_DOTS DOT_COMMA COMMA OPEN_PAR CLOSE_PAR ASSIGN NOT MINUS
 
 %code requires {
-    #include "symbol_table.h"
+    #include "st_node_t.h"
 }
 
 %union {
   int intval;
   double val;
-  char cha;
   char *string;
-  st_node_t *node;
+  st_node_tp node;
 }
 
 %right THEN ELSE // https://stackoverflow.com/a/12734499
@@ -36,10 +50,9 @@ unsigned temp_count = 0;
 
 %type <intval> INTEGER_CONST BOOLEAN_CONST
 %type <val> REAL_CONST
-%type <cha> CHAR_CONST
-%type <string> IDENTIFIER TYPE RELOP ADDOP MULOP
+%type <string> IDENTIFIER TYPE RELOP ADDOP MULOP CHAR_CONST
 
-%type <node> constant ident_list expr assign_stmt expr_list simple_expr term factor_a factor
+%type <node> constant factor_a factor term 
 
 %%
 
@@ -55,10 +68,21 @@ decl_list:
 decl:
     ident_list TWO_DOTS TYPE   {
         for(int i = 0; i < count; i++) {
-            st_node_t* node = st_lookup(st, $1);
-            if(node != NULL) printf("Erro: variavel %s ja definida.\n", $1);
-            else {
-                st_insert(st, variaveis[i], $3);
+            st_node_t* node = st_lookup(st, variaveis[i]);
+            if(node != NULL) {
+                fprintf(stderr, "Erro: redeclaracao da variavel %s, ja definida na linha %u.\n", variaveis[i], node->line);
+            } else {
+                st_type_t type = st_str2type($3);
+                node = st_create_node(variaveis[i], type, num_linha);
+                st_insert(st, node);
+
+                char buffer[128];
+                if (type == CHAR_T) {
+                    snprintf(buffer, 127, "declare %s %s '\\0'", variaveis[i], $3);
+                } else {
+                    snprintf(buffer, 127, "declare %s %s 0", variaveis[i], $3);
+                }
+                gen_code(buffer);
             } 
         }
         count = 0;    
@@ -67,13 +91,11 @@ decl:
 
 ident_list:
     ident_list COMMA IDENTIFIER    {
-        $$ = $3;
-        strcpy(variaveis[count], $$);
+        strcpy(variaveis[count], $3);
         count++;
     }
     | IDENTIFIER    {
-        $$ = $1;
-        strcpy(variaveis[count], $$);
+        strcpy(variaveis[count], $1);
         count++;
     }
     ;
@@ -156,27 +178,82 @@ simple_expr:
     ;
 
 term:
-    factor_a    
-    | term MULOP factor_a    
+    factor_a    {
+        $$ = $1;
+    }
+    | term MULOP factor_a    {
+        if (
+            ($1->type == $3->type) &&
+            ($1->type == INTEGER_T || $1->type == REAL_T)
+        ) {
+            char tname[16];
+            snprintf(tname, 15, "_t%u", temp_count++);
+            $$ = st_create_node(tname, $1->type, num_linha);
+            st_insert(st, $$);
+            char buffer[128];
+            snprintf(buffer, 127, "declare %s %s 0", tname, st_types[$1->type]);
+            gen_code(buffer);
+            snprintf(buffer, 127, "%s %s %s %s", $2, tname, $1->name, $3->name);
+            gen_code(buffer);
+        } else {
+            fprintf(stderr, "Erro: tipos %s e %s incompativeis com o operador %s na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
+            YYERROR;
+        }
+    }
     ;
 
 factor_a:
-    MINUS factor    
-    | factor    
+    MINUS factor    {
+        if ($2->type == REAL_T || $2->type == INTEGER_T) {
+            char tname[16];
+            snprintf(tname, 15, "_t%u", temp_count++);
+            $$ = st_create_node(tname, $2->type, num_linha);
+            st_insert(st, $$);
+            char buffer[128];
+            snprintf(buffer, 127, "declare %s %s 0", tname, st_types[$2->type]);
+            gen_code(buffer);
+            snprintf(buffer, 127, "- %s 0 %s", tname, $2->name);
+            gen_code(buffer);
+        } else {
+            fprintf(stderr, "Erro: tipo %s incompativel com o operador MINUS na linha %u.\n", st_types[$2->type], num_linha);
+            YYERROR;
+        }
+    }
+    | factor    {
+        $$ = $1;
+    }
     ;
 
 factor:
     IDENTIFIER    { 
-        st_node_t* node = st_lookup(st, $1);
-        if(node == NULL) {
-            printf("Erro: variavel %s nao definida.\n", $1);
-        } else {
-
+        $$ = st_lookup(st, $1);
+        if($$ == NULL) {
+            fprintf(stderr, "Erro: uso de variavel %s nao definida na linha %u.\n", $1, num_linha);
+            YYERROR;
         }
     }
-    | constant    
-    | OPEN_PAR expr CLOSE_PAR    
-    | NOT factor    
+    | constant    {
+        $$ = $1;
+    }
+    | OPEN_PAR expr CLOSE_PAR    {
+        
+    }
+    | NOT factor    {
+        if ($2->type == BOOLEAN_T || $2->type == INTEGER_T) {
+            char tname[16];
+            snprintf(tname, 15, "_t%u", temp_count++);
+            $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+            st_insert(st, $$);
+            char buffer[128];
+            snprintf(buffer, 127, "declare %s boolean 0", tname);
+            gen_code(buffer);
+            snprintf(buffer, 127, "not %s %s", tname, $2->name);
+            gen_code(buffer);
+        } else {
+            fprintf(stderr, "Erro: tipo %s incompativel com o operador NOT na linha %u.\n", st_types[$2->type], num_linha);
+            YYERROR;
+        }
+    }
     ;
 
 constant:
@@ -184,21 +261,37 @@ constant:
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
         $$ = st_create_node(tname, INTEGER_T, num_linha);
+        st_insert(st, $$);
+        char buffer[128];
+        snprintf(buffer, 127, "declare %s integer %i", tname, $1);
+        gen_code(buffer);
     }
     | REAL_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
         $$ = st_create_node(tname, REAL_T, num_linha);
+        st_insert(st, $$);
+        char buffer[128];
+        snprintf(buffer, 127, "declare %s real %lf", tname, $1);
+        gen_code(buffer);
     }
     | CHAR_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
         $$ = st_create_node(tname, CHAR_T, num_linha);
+        st_insert(st, $$);
+        char buffer[128];
+        snprintf(buffer, 127, "declare %s char %s", tname, $1);
+        gen_code(buffer);
     }
     | BOOLEAN_CONST {
         char tname[16];
         snprintf(tname, 15, "_t%u", temp_count++);
         $$ = st_create_node(tname, BOOLEAN_T, num_linha);
+        st_insert(st, $$);
+        char buffer[128];
+        snprintf(buffer, 127, "declare %s boolean %i", tname, $1);
+        gen_code(buffer);
     }
     ;
 
@@ -206,12 +299,31 @@ constant:
 %%
 int error = 0;
 void yyerror(char const *s) {
-    fprintf(stderr,"Erro na linha %i: %s\n", num_linha-1, s);
+    // fprintf(stderr,"Erro na linha %i: %s\n", num_linha-1, s);
     error = 1;
 }
 
 int main() {
+    st = st_alloc(GENERATED_CODE_MAX * 2);
+    codigo = (char**) malloc(GENERATED_CODE_MAX * sizeof (char*));
+    for (unsigned i = 0; i < GENERATED_CODE_MAX; i++) {
+        codigo[i] = (char*) malloc(GENERATED_CODE_LINE_MAX * sizeof (char));
+    }
+
     yyparse();
+
+    for (unsigned i = 0; i < codigo_count; i++) {
+        printf("%s\n", codigo[i]);
+    }
+    printf("\n");
+    st_print(st);
+
     if (!error) fprintf(stderr, "=== %i linhas analisadas ===\n", num_linha-1);
+
+    for (unsigned i = 0; i < GENERATED_CODE_MAX; i++) {
+        free(codigo[i]);
+    }
+    free(codigo);
+    st_free(st);
     return 0;
 }

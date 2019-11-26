@@ -52,7 +52,7 @@ write           {return WRITE;}
 {boolean_const} {yylval.intval = (strcmp(yytext, true_str) == 0 ? 1 : 0); return BOOLEAN_CONST;}
 {integer_const} {yylval.intval = atoi(yytext); return INTEGER_CONST;}
 {real_const}    {yylval.val = atof(yytext); return REAL_CONST;}
-{char_const}    {yylval.cha = yytext[0]; return CHAR_CONST;}
+{char_const}    {yylval.string = strdup(yytext); return CHAR_CONST;}
 
 NOT             {return NOT;}
 {RELOP}         {yylval.string = strdup(yytext); return RELOP;}
