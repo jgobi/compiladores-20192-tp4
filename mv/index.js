@@ -36,20 +36,21 @@ function mem_set(name, val) {
 
 function scan (type) {
     return new Promise(resolve => {
-        process.stdout.write('\n');
-        return rl.question('', answer => {
-            if (type === 'char') {
-                return isNaN(+answer) ? resolve(answer[0]) : '\0';
-            } else if (type === 'integer') {
-                return resolve(parseInt(answer) || 0);
-            } else if (type === 'real') {
-                return resolve(parseFloat(answer) || 0);
-            } else if (type === 'boolean') {
-                return resolve(!!parseInt(answer));
-            } else {
-                return resolve(0);
-            }
-        })
+        process.stdout.write('\n', () => {
+            rl.question('', answer => {
+                if (type === 'char') {
+                    return isNaN(+answer) ? resolve(answer[0]) : '\0';
+                } else if (type === 'integer') {
+                    return resolve(parseInt(answer) || 0);
+                } else if (type === 'real') {
+                    return resolve(parseFloat(answer) || 0);
+                } else if (type === 'boolean') {
+                    return resolve(!!parseInt(answer));
+                } else {
+                    return resolve(0);
+                }
+            });
+        });
     });
 }
 

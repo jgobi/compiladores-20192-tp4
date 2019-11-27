@@ -13,6 +13,8 @@ int yylex(void);
 
 const char st_types[4][8] = { "boolean", "char", "integer", "real" };
 
+int error = 0;
+
 extern int num_linha;
 symbol_table_t* st;
 
@@ -92,6 +94,7 @@ decl:
         for (int i = 0; i < count_ident; i++) {
             st_node_t* node = st_lookup(st, list_ident[i]);
             if (node != NULL) {
+                error = 1;
                 fprintf(stderr, "Erro: redeclaracao da variavel %s, ja definida na linha %u.\n", list_ident[i], node->line);
                 YYERROR;
             } else {
@@ -153,6 +156,7 @@ assign_stmt:
     IDENTIFIER ASSIGN expr    { 
         st_node_t* node = st_lookup(st, $1);
         if(node == NULL) {
+            error = 1;
             fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", $1, num_linha);
             YYERROR;
         } else {
@@ -187,6 +191,7 @@ cond:
     expr    {
         $$ = $1;
         if(stack_count >= MAX_STACK_SIZE) {
+            error = 1;
             fprintf(stderr, "Stack overflow na linha %u.\n", num_linha);
             YYERROR;
         } else {
@@ -244,6 +249,7 @@ read_stmt:
         for (int i = 0; i < count_ident; i++) {
             st_node_t* node = st_lookup(st, list_ident[i]);
             if (node == NULL) {
+                error = 1;
                 fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", list_ident[i], num_linha);
                 YYERROR;
             } else {
@@ -318,6 +324,7 @@ simple_expr:
             snprintf(buffer, 127, "- %s %s %s", tname, $1->name, $3->name);
             gen_code(buffer);
         } else {
+            error = 1;
             fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '-' na linha %u.\n", st_types[$1->type], st_types[$3->type], num_linha);
             YYERROR;
         }
@@ -339,7 +346,7 @@ simple_expr:
         ) {
             type = $1->type;
         } else {
-            is_error = 1;
+            is_error = error = 1;
             fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '%s' na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
             YYERROR;
         }
@@ -380,7 +387,7 @@ term:
         ) {
             type = $1->type;
         } else {
-            is_error = 1;
+            is_error = error = 1;
             fprintf(stderr, "Erro: tipos '%s' e '%s' incompativeis com o operador '%s' na linha %u.\n", st_types[$1->type], st_types[$3->type], $2, num_linha);
             YYERROR;
         }
@@ -414,6 +421,7 @@ factor_a:
             snprintf(buffer, 127, "- %s 0 %s", tname, $2->name);
             gen_code(buffer);
         } else {
+            error = 1;
             fprintf(stderr, "Erro: tipo '%s' incompativel com o operador '-' na linha %u.\n", st_types[$2->type], num_linha);
             YYERROR;
         }
@@ -427,6 +435,7 @@ factor:
     IDENTIFIER    { 
         $$ = st_lookup(st, $1);
         if ($$ == NULL) {
+            error = 1;
             fprintf(stderr, "Erro: uso de variavel '%s' nao definida na linha %u.\n", $1, num_linha);
             YYERROR;
         }
@@ -450,6 +459,7 @@ factor:
             snprintf(buffer, 127, "not %s %s", tname, $2->name);
             gen_code(buffer);
         } else {
+            error = 1;
             fprintf(stderr, "Erro: tipo '%s' incompativel com o operador 'NOT' na linha %u.\n", st_types[$2->type], num_linha);
             YYERROR;
         }
@@ -497,7 +507,7 @@ constant:
 
 
 %%
-int error = 0;
+
 void yyerror(char const *s) {
     fprintf(stderr,"Erro na linha %u: %s\n", num_linha, s);
     error = 1;
@@ -526,5 +536,5 @@ int main() {
     }
     free(codigo);
     st_free(st);
-    return 0;
+    return error;
 }
