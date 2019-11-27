@@ -15,7 +15,7 @@ scale_factor    E{sign}?{unsigned_int}
 unsigned_real   {unsigned_int}(\.{digit}*)?{scale_factor}?
 integer_const   {unsigned_int}
 real_const      {unsigned_real}
-char_const      '([^\n'\\]|\\(1?[0-7]?[0-7]|x[0-9A-Fa-f]?[0-9A-Fa-f]|['abefnrtv\\?]))'
+char_const      '([^\n'\\]|\\['nt0\\])'
 
 type            integer|real|boolean|char
 boolean_const   true|false
