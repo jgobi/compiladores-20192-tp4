@@ -1,8 +1,6 @@
 #ifndef SYMBOL_TABLE__H
 #define SYMBOL_TABLE__H
 
-// #include "st_node_t.h"
-
 typedef enum st_type_t { BOOLEAN_T, CHAR_T, INTEGER_T, REAL_T } st_type_t;
 
 typedef struct st_node_t {
