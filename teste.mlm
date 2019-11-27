@@ -1,14 +1,20 @@
-program teste; var1: integer; var2: char
+program teste; var1, var5: integer; var2: char; var3: boolean; var4: real
 begin
     var1 := 10;
+    var3 := true;
     if var1 < 100 then begin
         var1 := var1*2
     end
     else begin
         read(var2)
-    end
-    while var1 > 0 do
+    end;
+    while var1 >= 0 do
         var1 := var1 - 12;
-        write(var1)
-    end
+        var4 := var4 + 3.4;
+        write(var4, '\t')
+    end;
+    write('\n');
+    var5 := 5;
+    var1 := 3 * var5 * (4 + 5);
+    write('r', 'e', 's', '=', var1, '\n')
 end
